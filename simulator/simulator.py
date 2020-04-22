@@ -5,11 +5,12 @@ from calendar import monthrange
 from datetime import date
 
 from . import gen_random
-from . import config
+from . import params
 from .db import manager as db_manager
-from .config import SRC_PATH
 
-CF = config.Config()
+PM = params.ParamManager()
+SRC_PATH = path.dirname(path.realpath(__file__))
+print(f'simulator-{SRC_PATH}')
 BASE_PATH = path.dirname(SRC_PATH)
 IN_PATH = path.join(BASE_PATH, 'in')
 DAYS_IN_YEAR = 365
@@ -25,14 +26,14 @@ def start_dbs():
     }
     db = {}
 
-    created_tables = CF.get_value('created_tables') or []
+    created_tables = PM.get_value('created_tables') or []
     for table, database in tables.items():
         db[table] = database()
         if table not in created_tables:
             db[table].create()
             created_tables.append(table)
             # melhorar isso.
-            CF.set_value('created_tables', created_tables)
+            PM.set_value('created_tables', created_tables)
 
     return db
 
@@ -46,21 +47,21 @@ def add_client(cpf: str, birthdate: str, id_address: int) -> int:
 
 
 def run_simulator(start_year: int, db: dict) -> dict:
-    years = CF.get_value('years')
+    years = PM.get_value('years')
     total_clients = [0 for _ in range(years)]
     total_sales = [0 for _ in range(years)]
     total_sold_products = [0 for _ in range(years)]
     for year in range(years):
-        base_daily_sales = CF.get_value('average_daily_sales')[year]
+        base_daily_sales = PM.get_value('average_daily_sales')[year]
         if year == 0:
-            base_daily_clients = CF.get_value('initial_yearly_new_clients') / DAYS_IN_YEAR
-            base_prod_per_sale = CF.get_value('initial_average_products_per_sale')
+            base_daily_clients = PM.get_value('initial_yearly_new_clients') / DAYS_IN_YEAR
+            base_prod_per_sale = PM.get_value('initial_average_products_per_sale')
         else:
-            base_daily_clients = base_daily_clients * CF.get_value('yearly_client_growth')[year]
-            base_prod_per_sale = base_prod_per_sale * CF.get_value('yearly_prod_sold_growth')[year]
+            base_daily_clients = base_daily_clients * PM.get_value('yearly_client_growth')[year]
+            base_prod_per_sale = base_prod_per_sale * PM.get_value('yearly_prod_sold_growth')[year]
 
         for month in range(12):
-            seasonality = CF.get_value('trimester_seasonality')[month // 3]
+            seasonality = PM.get_value('trimester_seasonality')[month // 3]
             daily_clients = base_daily_clients * seasonality
             prod_per_client = base_prod_per_sale * seasonality
             avg_daily_sales = base_daily_sales * seasonality
@@ -68,7 +69,7 @@ def run_simulator(start_year: int, db: dict) -> dict:
             for day in range(monthrange(start_year + year, month + 1)[1]):
                 # curr_date = date(year + start_year, month + 1, day + 1).strftime('%d/%m/%Y')
                 new_clients = max(int(random.gauss(daily_clients, 3)), 0)
-                for _ in new_clients:
+                for _ in range(new_clients):
                     city, uf = gen_random.city_state(path.join(IN_PATH, 'cities_with_weights.json'))
                     id_address = add_city(city, uf)
                     cpf = gen_random.cpf()

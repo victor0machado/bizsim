@@ -1,7 +1,7 @@
 import random
 
 from os import path
-from calendar import monthrange
+from calendar import monthrange, month_name
 from datetime import date
 from typing import Tuple
 
@@ -9,12 +9,13 @@ from . import gen_random
 from . import params
 from .db import manager as db_manager
 
-PM = params.ParamManager()
+
 SRC_PATH = path.dirname(path.realpath(__file__))
 print(f'simulator-{SRC_PATH}')
 BASE_PATH = path.dirname(SRC_PATH)
 IN_PATH = path.join(BASE_PATH, 'in')
 DAYS_IN_YEAR = 365
+PM = params.ParamManager(path.join(IN_PATH, 'initial_params.json'))
 
 
 def start_dbs():
@@ -100,36 +101,67 @@ def create_daily_sales(daily_sales: float, prod_per_client: float, curr_date: st
     return sales, total_sold_products
 
 
+def populate_day(day: int, month: int, year: int, stats: dict, db: dict) -> Tuple[int, int, int]:
+    curr_date = date(year, month, day + 1).strftime('%d/%m/%Y')
+    total_clients = create_daily_new_clients(stats['clients'], year, db)
+    sales = create_daily_sales(stats['avg_sales'], stats['prods'], curr_date, db)
+    return total_clients, sales[0], sales[1]
+
+
+def populate_month(month: int, year: int, db: dict) -> Tuple[int, int, int]:
+    seasonality = PM.get_value('trimester_seasonality')[month - 1 // 3]
+    stats = {
+        'clients': PM.get_value('daily_clients') * seasonality,
+        'prods': PM.get_value('prod_per_sale') * seasonality,
+        'avg_sales': PM.get_value('daily_sales') * seasonality
+    }
+
+    totals = (0, 0, 0)
+    for day in range(monthrange(year, month)[1]):
+        daily_totals = populate_day(day, month, year, stats, db)
+        totals = (totals[i] + daily_totals[i] for i in range(3))
+
+    return totals
+
+
+def set_base_stats(year) -> dict:
+    PM.set_value('daily_sales', PM.get_value('average_daily_sales')[year])
+    if year == 0:
+        daily_clients = PM.get_value('initial_yearly_new_clients') / DAYS_IN_YEAR
+        prod_per_sale = PM.get_value('initial_average_products_per_sale')
+    else:
+        daily_clients = PM.get_value('base_daily_clients') * PM.get_value('yearly_client_growth')[year]
+        prod_per_sale = PM.get_value('base_prod_per_sale') * PM.get_value('yearly_prod_sold_growth')[year]
+
+    PM.set_value('daily_clients', daily_clients)
+    PM.set_value('prod_per_sale', prod_per_sale)
+    return True
+
+
+def populate_year(year: int, start_year: int, db: dict) -> Tuple[int, int, int]:
+    set_base_stats(year)
+
+    totals = (0, 0, 0)
+    for month in range(1, 13):
+        print(f'Comecando mes {month_name[month]}...')
+        input('')
+        monthly_totals = populate_month(month, year + start_year, db)
+        totals = (totals[i] + monthly_totals[i] for i in range(3))
+
+    return totals
+
+
 def run_simulator(start_year: int, db: dict) -> dict:
     years = PM.get_value('years')
-    total_clients = [0 for _ in range(years)]
-    total_sales = [0 for _ in range(years)]
-    total_sold_products = [0 for _ in range(years)]
     for year in range(years):
-        base_daily_sales = PM.get_value('average_daily_sales')[year]
-        if year == 0:
-            base_daily_clients = PM.get_value('initial_yearly_new_clients') / DAYS_IN_YEAR
-            base_prod_per_sale = PM.get_value('initial_average_products_per_sale')
-        else:
-            base_daily_clients = base_daily_clients * PM.get_value('yearly_client_growth')[year]
-            base_prod_per_sale = base_prod_per_sale * PM.get_value('yearly_prod_sold_growth')[year]
+        print(f'\n\nComecando ano {year + start_year}...')
+        input('')
+        yearly_totals = populate_year(year, start_year, db)
 
-        for month in range(12):
-            seasonality = PM.get_value('trimester_seasonality')[month // 3]
-            daily_clients = base_daily_clients * seasonality
-            prod_per_client = base_prod_per_sale * seasonality
-            avg_daily_sales = base_daily_sales * seasonality
-
-            for day in range(monthrange(start_year + year, month + 1)[1]):
-                curr_date = date(year + start_year, month + 1, day + 1).strftime('%d/%m/%Y')
-                total_clients[year] += create_daily_new_clients(daily_clients, year + start_year, db)
-                sales = create_daily_sales(avg_daily_sales, prod_per_client, curr_date, db)
-                total_sales[year] += sales[0]
-                total_sold_products[year] += sales[1]
-
-            print(f'\n\nTotal clientes: {total_clients[year]}')
-            print(f'Vendas totais: {total_sales[year]}')
-            print(f'Total produtos: {total_sold_products[year]}')
+        print(f'\n\nAno {year + start_year}:')
+        print(f'\nTotal clientes: {yearly_totals[0]}')
+        print(f'Vendas totais: {yearly_totals[1]}')
+        print(f'Total produtos vendidos: {yearly_totals[2]}')
 
     return db
 

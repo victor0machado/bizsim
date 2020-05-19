@@ -4,6 +4,7 @@ clientes = [
         id_cliente INTEGER PRIMARY KEY AUTOINCREMENT,
         cpf VARCHAR(14) NOT NULL,
         nascimento DATE NOT NULL,
+        genero TEXT NOT NULL,
         id_endereco INTEGER,
         FOREIGN KEY (id_endereco) REFERENCES enderecos(id_endereco)
     );

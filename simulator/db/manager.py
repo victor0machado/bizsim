@@ -39,11 +39,13 @@ class database():
         self.column_names = self.fetch_column_names()
         return True
 
-    def add_register(self, values: list) -> bool:
+    def add_many_registers(self, values: list) -> bool:
+        """Add several registers to a db.
+        values: list containing lists with single entries"""
         try:
             self.db.cursor.executemany(self.insert_cmd, values)
             self.db.commit_db()
-            print(f'Dados inseridos com sucesso: {len(values)} registros.')
+            print(f'Dados inseridos com sucesso na tabela {self.name}: {len(values)} registros.')
         except sqlite3.IntegrityError:
             print("Aviso: erro na inclusao dos dados no banco.")
             return False
@@ -54,6 +56,10 @@ class database():
         sql = f'SELECT * FROM {self.name} ORDER BY {self.column_names[0]}'
         exe = self.db.cursor.execute(sql)
         return exe.fetchall()
+
+    def fetch_all_ids(self) -> list:
+        entries = self.fetch_all_entries()
+        return [entry[0] for entry in entries]
 
     def fetch_all_entries_from_match(self, column: str, value) -> list:
         sql = f"SELECT * FROM {self.name} WHERE {column}="
@@ -98,7 +104,7 @@ class database():
 
     def add_from_csv(self, inputpath: str) -> bool:
         entries = self._import_from_csv(inputpath)
-        return self.add_register(entries)
+        return self.add_many_registers(entries)
 
 
 class ClientesDb(database):
@@ -106,12 +112,16 @@ class ClientesDb(database):
         super().__init__('clientes')
         self.schema = schemas.clientes
         self.insert_cmd = """
-            INSERT INTO clientes (cpf, nascimento, id_endereco)
-            VALUES (?,?,?)
+            INSERT INTO clientes (cpf, nascimento, id_endereco, genero)
+            VALUES (?,?,?,?)
         """
 
-    def search_cpf(self, value: str) -> list:
-        return self.fetch_all_entries_from_match('cpf', value)
+    def search_cpf(self, value: str) -> int:
+        ret = self.fetch_all_entries_from_match('cpf', value)
+        if ret:
+            return ret[0][0]
+        else:
+            return -1
 
 
 class ProdutosDb(database):
@@ -152,3 +162,11 @@ class EnderecosDb(database):
             INSERT INTO enderecos (cidade, uf)
             VALUES (?,?)
         """
+
+    def fetch_address(self, city: str, uf: str) -> int:
+        sql = f"SELECT * FROM {self.name} WHERE cidade='{city}' and uf='{uf}'"
+        exe = self.db.cursor.execute(sql)
+        ret = exe.fetchall()
+        if ret:
+            return ret[0][0]
+        return -1

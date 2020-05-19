@@ -31,8 +31,9 @@ class database():
         try:
             self.db.cursor.executescript(self.schema[1])
             self.db.commit_db()
-        except sqlite3.Error:
+        except sqlite3.Error as err:
             print(f'Aviso: erro na criacao da tabela {self.schema[0]}.')
+            print(f'Erro: {err}')
             return False
 
         print('Tabela criada com sucesso.')

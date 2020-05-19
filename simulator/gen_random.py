@@ -7,6 +7,12 @@ import json
 from typing import Tuple
 
 
+def gender() -> str:
+    options = ['masculino', 'feminino', 'outro']
+    weights = [30, 60, 10]
+    return random.choices(options, weights=weights, k=1)[0]
+
+
 def age() -> int:
     age = 0
     while age <= 18:
@@ -35,6 +41,22 @@ def city_state(srcpath: str) -> Tuple:
     cities = [tuple(elem[0:2]) for elem in cities_with_weights]
     weights = [elem[2] for elem in cities_with_weights]
     return random.choices(cities, weights=weights)[0]
+
+
+def shipping() -> str:
+    options = ['correios', 'transportadora', 'motoboy']
+    weights = [random.randint(60, 70)]
+    weights.append(random.randint(20, 30))
+    weights.append(100 - weights[0] - weights[1])
+    return random.choices(options, weights, k=1)[0]
+
+
+def payment() -> str:
+    options = ['credito', 'debito', 'transferencia']
+    weights = [random.randint(50, 65)]
+    weights.append(random.randint(10, 20))
+    weights.append(100 - weights[0] - weights[1])
+    return random.choices(options, weights, k=1)[0]
 
 
 def get_cities_with_weights(srcpath: str) -> list:

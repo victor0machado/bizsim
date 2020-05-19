@@ -3,7 +3,6 @@ import random
 from os import path
 from calendar import monthrange, month_name
 from datetime import date
-from typing import Tuple
 
 from . import gen_random
 from . import params
@@ -82,7 +81,7 @@ def create_daily_new_clients(daily_clients: float, year: int, db: dict) -> int:
     return new_clients
 
 
-def create_daily_sales(daily_sales: float, prod_per_client: float, curr_date: str, db: dict) -> Tuple[int, int]:
+def create_daily_sales(daily_sales: float, prod_per_client: float, curr_date: str, db: dict) -> list:
     sales = max(int(random.gauss(daily_sales, 3)), 0)
     total_sold_products = 0
     daily_clients = []
@@ -98,17 +97,17 @@ def create_daily_sales(daily_sales: float, prod_per_client: float, curr_date: st
         total_sold_products += prods
         daily_clients.append(client_id)
 
-    return sales, total_sold_products
+    return [sales, total_sold_products]
 
 
-def populate_day(day: int, month: int, year: int, stats: dict, db: dict) -> Tuple[int, int, int]:
+def populate_day(day: int, month: int, year: int, stats: dict, db: dict) -> list:
     curr_date = date(year, month, day + 1).strftime('%d/%m/%Y')
     total_clients = create_daily_new_clients(stats['clients'], year, db)
     sales = create_daily_sales(stats['avg_sales'], stats['prods'], curr_date, db)
-    return total_clients, sales[0], sales[1]
+    return [total_clients, sales[0], sales[1]]
 
 
-def populate_month(month: int, year: int, db: dict) -> Tuple[int, int, int]:
+def populate_month(month: int, year: int, db: dict) -> list:
     seasonality = PM.get_value('trimester_seasonality')[(month - 1) // 3]
     stats = {
         'clients': PM.get_value('daily_clients') * seasonality,
@@ -116,11 +115,12 @@ def populate_month(month: int, year: int, db: dict) -> Tuple[int, int, int]:
         'avg_sales': PM.get_value('daily_sales') * seasonality
     }
 
-    totals = (0, 0, 0)
+    totals = [0, 0, 0]
     for day in range(monthrange(year, month)[1]):
         daily_totals = populate_day(day, month, year, stats, db)
-        totals = (totals[i] + daily_totals[i] for i in range(3))
+        totals = [totals[i] + daily_totals[i] for i in range(3)]
 
+    print(f'populate_month: {totals}')
     return totals
 
 
@@ -138,15 +138,16 @@ def set_base_stats(year) -> dict:
     return True
 
 
-def populate_year(year: int, start_year: int, db: dict) -> Tuple[int, int, int]:
+def populate_year(year: int, start_year: int, db: dict) -> list:
     set_base_stats(year)
 
-    totals = (0, 0, 0)
+    totals = [0, 0, 0]
     for month in range(1, 13):
         print(f'Comecando mes {month_name[month]}...')
         monthly_totals = populate_month(month, year + start_year, db)
-        totals = (totals[i] + monthly_totals[i] for i in range(3))
+        totals = [totals[i] + monthly_totals[i] for i in range(3)]
 
+    print(f'populate_year: {totals}')
     return totals
 
 
@@ -155,7 +156,6 @@ def run_simulator(start_year: int, db: dict) -> dict:
     for year in range(years):
         print(f'\n\nComecando ano {year + start_year}...')
         yearly_totals = populate_year(year, start_year, db)
-
         print(f'\n\nAno {year + start_year}:')
         print(f'\nTotal clientes: {yearly_totals[0]}')
         print(f'Vendas totais: {yearly_totals[1]}')

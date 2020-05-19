@@ -109,7 +109,7 @@ def populate_day(day: int, month: int, year: int, stats: dict, db: dict) -> Tupl
 
 
 def populate_month(month: int, year: int, db: dict) -> Tuple[int, int, int]:
-    seasonality = PM.get_value('trimester_seasonality')[month - 1 // 3]
+    seasonality = PM.get_value('trimester_seasonality')[(month - 1) // 3]
     stats = {
         'clients': PM.get_value('daily_clients') * seasonality,
         'prods': PM.get_value('prod_per_sale') * seasonality,
@@ -144,7 +144,6 @@ def populate_year(year: int, start_year: int, db: dict) -> Tuple[int, int, int]:
     totals = (0, 0, 0)
     for month in range(1, 13):
         print(f'Comecando mes {month_name[month]}...')
-        input('')
         monthly_totals = populate_month(month, year + start_year, db)
         totals = (totals[i] + monthly_totals[i] for i in range(3))
 
@@ -155,7 +154,6 @@ def run_simulator(start_year: int, db: dict) -> dict:
     years = PM.get_value('years')
     for year in range(years):
         print(f'\n\nComecando ano {year + start_year}...')
-        input('')
         yearly_totals = populate_year(year, start_year, db)
 
         print(f'\n\nAno {year + start_year}:')
